@@ -7,11 +7,8 @@ const routes = [
   { path: "/admin/profile", name: "Profile", component: Profile },
 ];
 
-const isGithubPages = window.location.hostname.includes("github.io");
-const base = isGithubPages ? "/Proyecto-Login/" : "/";
-
 const router = createRouter({
-  history: createWebHistory(base),
+  history: createWebHistory("/"), 
   routes,
 });
 

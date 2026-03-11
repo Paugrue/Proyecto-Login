@@ -116,7 +116,13 @@ onMounted(() => {
           <div class="email">{{ userEmail }}</div>
         </div>
       </div>
-      <button class="profileBtn" @click="goToProfile">Editar Perfil</button>
+        <button
+        v-if="isAdmin"
+        class="profileBtn"
+        @click="$router.push('/admin/profile')"
+      >
+        Editar Perfil
+      </button>
     </div>
   </header>
 
