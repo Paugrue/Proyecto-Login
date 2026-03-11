@@ -1,9 +1,5 @@
 // src/admin-profile.js
-// src/admin-profile.js
-import { supabase } from '/supabaseClient.js';   
-import { AuthService } from '/AuthService.js';
-import { TaskService } from '/TaskService.js'; 
-import { StorageService } from '/StorageService.js';
+import { supabase } from './supabaseClient.js';  
 
 
 const ADMIN_EMAIL = 'paulagrueso@gmail.com';

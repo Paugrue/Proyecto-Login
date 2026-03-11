@@ -1,16 +1,16 @@
 <script setup>
 import { ref, onMounted } from "vue";
-import { supabase } from "./supabaseClient";
 import { useRouter } from "vue-router";
+import { supabase } from "../supabaseClient.js";
 
-import Login from "./components/Login.vue";
-import Tasks from "./components/Tasks.vue";
-import PublicGallery from "./components/PublicGallery.vue";
-import AdminGallery from "./components/AdminGallery.vue";
+import Login from "../components/Login.vue";
+import Tasks from "../components/Tasks.vue";
+import PublicGallery from "../components/PublicGallery.vue";
+import AdminGallery from "../components/AdminGallery.vue";
 
 const router = useRouter();
 
-// Estado del usuario
+// Estados
 const user = ref(null);
 const userEmail = ref("");
 const username = ref("");
@@ -21,28 +21,21 @@ const tasks = ref([]);
 const publicImages = ref([]);
 const adminImages = ref([]);
 
-// --- Funciones --- //
+// --- Funciones ---
 async function checkSession() {
   const { data } = await supabase.auth.getSession();
-  if (data.session) {
-    handleUserLogin(data.session.user);
-  }
+  if (data.session) handleUserLogin(data.session.user);
 }
 
 async function handleUserLogin(loggedUser) {
   user.value = loggedUser;
   userEmail.value = loggedUser.email;
   username.value = loggedUser.user_metadata?.username || "Usuario";
-
-  // admin
   isAdmin.value = ["paulagrueso@gmail.com"].includes(userEmail.value);
 
   await loadTasks();
   await loadPublicImages();
-
-  if (isAdmin.value) {
-    await loadAdminImages();
-  }
+  if (isAdmin.value) await loadAdminImages();
 }
 
 async function logout() {
@@ -58,12 +51,11 @@ async function logout() {
 
 async function loadTasks() {
   if (!user.value) return;
-
   const { data } = await supabase
     .from("tasks")
     .select("*")
-    .order("id", { ascending: false })
-    .eq("user_id", user.value.id);
+    .eq("user_id", user.value.id)
+    .order("id", { ascending: false });
 
   if (data) tasks.value = data;
 }
@@ -94,7 +86,7 @@ async function loadAdminImages() {
   });
 }
 
-// Navegar a editar perfil
+// Redirigir a perfil
 function goToProfile() {
   router.push("/admin/profile");
 }
@@ -107,8 +99,7 @@ onMounted(() => {
 <template>
   <header id="appHeader">
     <div><strong>Proyecto Supabase</strong></div>
-
-    <div id="userInfo" v-if="user">
+    <div id="userInfo">
       <div class="userRow">
         <span class="userIcon">👤</span>
         <div>
@@ -116,7 +107,10 @@ onMounted(() => {
           <div class="email">{{ userEmail }}</div>
         </div>
       </div>
-      <button class="profileBtn" @click="goToProfile">Editar Perfil</button>
+
+      <button v-if="user" class="profileBtn" @click="goToProfile">
+        Editar Perfil
+      </button>
     </div>
   </header>
 
@@ -133,7 +127,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style>
+<style scoped>
 :root {
   --primary: #3ecf8e;
   --primary-hover: #34b27b;
@@ -147,7 +141,7 @@ onMounted(() => {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   background: var(--bg);
   color: var(--text);
 }
