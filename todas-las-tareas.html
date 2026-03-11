@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Todas las tareas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Fuente opcional -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary:#3ecf8e; --border:#333; --bg:#121212; --card:#1e1e1e; --text:#fff; --danger:#fa4d4d;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      max-width: 1000px; margin: 32px auto; padding: 16px;
+    }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    nav a { color: var(--primary); text-decoration: none; margin-left: 8px; }
+    .section { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+
+    ul { list-style:none; padding:0; margin:0; }
+    li {
+      display:flex; gap:12px; justify-content:space-between; align-items:flex-start;
+      border:1px solid var(--border); background:#1b1b1b; border-radius:10px;
+      padding:12px; margin:10px 0;
+    }
+    .title { font-weight:600; }
+    .meta { opacity:.85; font-size:.9rem; }
+    .grow { flex: 1; }
+    .controls { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+
+    textarea {
+      width:100%; background:#0d0d0d; color:#fff; border:1px solid var(--border);
+      border-radius:8px; padding:10px 12px; min-height:70px; resize: vertical;
+    }
+    button {
+      background:var(--primary); color:#000; font-weight:600; border:none;
+      border-radius:8px; padding:8px 12px; cursor:pointer;
+    }
+    button:disabled, input:disabled, textarea:disabled { opacity:.6; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Todas las tareas</h2>
+    <nav>
+      <a href="/mis-tareas.html">Mis tareas</a> ·
+      <a href="/">Inicio</a>
+    </nav>
+  </header>
+
+  <section class="section">
+    <ul id="all-list"></ul>
+  </section>
+
+  <!-- Importa la lógica de la página -->
+  <script type="module" src="/todas-las-tareas.js"></script>
+</body>
+</html>

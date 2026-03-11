@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Perfil (Admin)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --primary:#3ecf8e; --border:#333; --bg:#121212; --card:#1e1e1e; --text:#fff; --danger:#fa4d4d; }
+    body { font-family:'Inter',system-ui; background:var(--bg); color:var(--text); max-width:800px; margin:32px auto; padding:16px; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    a { color:var(--primary); text-decoration:none; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+    .row { display:flex; gap:16px; align-items:flex-start; }
+    .left { width: 200px; }
+    .right { flex:1; display:grid; gap:12px; }
+    label { font-weight:600; display:block; margin-bottom:4px; }
+    input[type=text] { width:100%; background:#0d0d0d; color:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+    input[type=file] { width:100%; }
+    img.avatar { width: 180px; height: 180px; object-fit: cover; border-radius: 50%; border:1px solid var(--border); background:#000; }
+    button { background:var(--primary); color:#000; font-weight:600; border:none; border-radius:8px; padding:10px 14px; cursor:pointer; }
+    .danger { background:transparent; border:1px solid var(--danger); color:var(--danger); }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Mi perfil (Admin)</h2>
+    <nav>
+      <a href="/">Inicio</a> · 
+      <a href="/mis-tareas.html">Mis tareas</a> · 
+      <a href="/todas-las-tareas.html">Todas</a>
+    </nav>
+  </header>
+
+  <section class="card">
+    <div class="row">
+      <div class="left">
+        <img id="avatarPreview" class="avatar" alt="Avatar" src="">
+        <div style="margin-top:8px;">
+          <input type="file" id="avatarInput" accept="image/*" />
+        </div>
+      </div>
+      <div class="right">
+        <div>
+          <label for="fullName">Nombre completo</label>
+          <input id="fullName" type="text" placeholder="Tu nombre" />
+        </div>
+        <div>
+        <label for="emailInput">Email</label>
+        <input id="emailInput" type="email" placeholder="tu@correo.com" />
+        <small style="opacity:.8">Al guardar, se enviará confirmación a este email.</small>
+      </div>
+        <div>
+          <button id="saveBtn">Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="/src/admin-profile.js"></script>
+</body>
+</html>
