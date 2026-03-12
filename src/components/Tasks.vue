@@ -30,12 +30,8 @@
 
     <!-- Lista -->
     <ul class="task-list">
-      <li
-        v-for="task in tasks"
-        :key="task.id"
-        class="task-card"
-      >
-        <!-- Columna izquierda: checkbox -->
+      <li v-for="task in tasks" :key="task.id" class="task-card">
+
         <div class="task-check">
           <input
             type="checkbox"
@@ -46,8 +42,9 @@
           />
         </div>
 
-        <!-- Zona central -->
         <div class="task-middle">
+
+          <!-- Título -->
           <div class="task-title-row">
             <span
               v-if="editingId !== task.id"
@@ -64,6 +61,7 @@
             />
           </div>
 
+          <!-- Descripción -->
           <div class="task-desc-row">
             <span
               v-if="editingId !== task.id"
@@ -81,15 +79,43 @@
             ></textarea>
           </div>
 
-          <div
-            v-if="showCreator"
-            class="task-meta"
-          >
+          <!-- Archivo -->
+          <div v-if="task.file_url" class="task-file-preview">
+
+            <!-- Imagen preview -->
+            <img
+              v-if="isImage(task.file_url)"
+              :src="task.file_url"
+              class="task-image-preview"
+            />
+
+            <!-- Enlace -->
+            <a
+              :href="task.file_url"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              📎 Ver archivo completo
+            </a>
+
+          </div>
+
+          <!-- Nuevo archivo -->
+          <div v-if="editingId === task.id">
+            <input
+              type="file"
+              :ref="el => editFileInputs[task.id] = el"
+              class="task-file"
+              accept="image/*,application/pdf"
+            />
+          </div>
+
+          <div v-if="showCreator" class="task-meta">
             Creado por: {{ task.creator_name || task.user_id }}
           </div>
+
         </div>
 
-        <!-- Acciones -->
         <div class="task-actions">
           <button
             v-if="canEdit(task) && editingId !== task.id"
@@ -115,6 +141,7 @@
             🗑
           </button>
         </div>
+
       </li>
     </ul>
   </div>
@@ -124,12 +151,11 @@
 import { ref } from "vue"
 import { supabase } from "@/supabaseClient"
 
-// Props
 const props = defineProps({
   tasks: { type: Array, default: () => [] },
   user: { type: Object, required: true },
-  allowAdd: { type: Boolean, default: true },   // en "Todas" lo pondremos a false
-  showCreator: { type: Boolean, default: false },// en "Todas" lo pondremos a true
+  allowAdd: { type: Boolean, default: true },
+  showCreator: { type: Boolean, default: false },
   title: { type: String, default: "" }
 })
 
@@ -139,43 +165,59 @@ const newTask = ref("")
 const newDesc = ref("")
 const fileInput = ref(null)
 
+const editFileInputs = ref({})
+
 const editingId = ref(null)
 const editTitle = ref("")
 const editDesc = ref("")
+const oldFileUrl = ref(null)
 
 function canEdit(task) {
   return props.user && task.user_id === props.user.id
 }
 
+function isImage(url) {
+  return /\.(jpg|jpeg|png|webp|gif)$/i.test(url)
+}
+
+/* SUBIR ARCHIVO */
+async function uploadTaskFile(uid, file) {
+
+  const safeName = file.name.replace(/[^\w.\- ]+/g, "_")
+  const filePath = `tasks/${uid}/${Date.now()}-${safeName}`
+
+  const { error } = await supabase.storage
+    .from("files")
+    .upload(filePath, file, {
+      upsert: true,
+      contentType: file.type
+    })
+
+  if (error) throw new Error(error.message)
+
+  return supabase.storage
+    .from("files")
+    .getPublicUrl(filePath).data.publicUrl
+}
+
+/* AÑADIR */
 async function addTask() {
+
   const title = newTask.value.trim()
   const description = newDesc.value.trim()
   if (!title) return
 
-  let fileUrl = null
   const file = fileInput.value?.files?.[0]
+  let fileUrl = null
 
-  if (file) {
-    const { data, error } = await supabase.storage
-      .from("files")
-      .upload(`tasks/${props.user.id}/${Date.now()}-${file.name}`, file, {
-        upsert: true
-      })
-    if (error) { alert(error.message); return }
+  if (file) fileUrl = await uploadTaskFile(props.user.id, file)
 
-    const { data: urlData } = supabase.storage
-      .from("files")
-      .getPublicUrl(data.path)
-    fileUrl = urlData.publicUrl
-  }
-
-  // Nombre/identificador del creador (metadata full_name si existe, si no email)
   const creatorName =
     props.user.user_metadata?.full_name ||
     props.user.email ||
     "Usuario"
 
-  const { error: insertErr } = await supabase
+  const { error } = await supabase
     .from("tasks")
     .insert({
       title,
@@ -186,60 +228,93 @@ async function addTask() {
       creator_name: creatorName
     })
 
-  if (insertErr) { alert(insertErr.message); return }
+  if (error) return alert(error.message)
 
   newTask.value = ""
   newDesc.value = ""
-  if (fileInput.value) fileInput.value.value = ""
+  fileInput.value.value = ""
+
   emit("reload")
 }
 
+/* INICIAR EDICIÓN */
 function startEdit(task) {
-  if (!canEdit(task)) return
   editingId.value = task.id
   editTitle.value = task.title
-  editDesc.value = task.description || ""
+  editDesc.value = task.description
+  oldFileUrl.value = task.file_url
 }
 
+/* GUARDAR EDICIÓN */
 async function saveEdit(task) {
-  if (!canEdit(task)) return
-  const title = editTitle.value.trim()
-  const description = editDesc.value.trim()
+
+  let newFileUrl = oldFileUrl.value
+  const newFile = editFileInputs.value[task.id]?.files?.[0]
+
+  if (newFile) {
+
+    const newUrl = await uploadTaskFile(props.user.id, newFile)
+    newFileUrl = newUrl
+
+    if (oldFileUrl.value) {
+      const path = oldFileUrl.value
+        .split("/storage/v1/object/public/files/")[1]
+
+      if (path)
+        await supabase.storage.from("files").remove([path])
+    }
+  }
 
   const { error } = await supabase
     .from("tasks")
-    .update({ title, description })
+    .update({
+      title: editTitle.value.trim(),
+      description: editDesc.value.trim(),
+      file_url: newFileUrl
+    })
     .eq("id", task.id)
-    // .eq("user_id", props.user.id) // extra (opcional)
-  if (error) { alert(error.message); return }
+
+  if (error) return alert(error.message)
 
   editingId.value = null
+  oldFileUrl.value = null
+
   emit("reload")
 }
 
+/* BORRAR */
 async function deleteTask(id) {
+
   if (!confirm("¿Eliminar tarea?")) return
-  const { error } = await supabase
-    .from("tasks")
-    .delete()
-    .eq("id", id)
-    // .eq("user_id", props.user.id) // extra (opcional)
-  if (error) { alert(error.message); return }
+
+  const task = props.tasks.find(t => t.id === id)
+
+  if (task?.file_url) {
+    const path = task.file_url
+      .split("/storage/v1/object/public/files/")[1]
+
+    if (path)
+      await supabase.storage.from("files").remove([path])
+  }
+
+  await supabase.from("tasks").delete().eq("id", id)
+
   emit("reload")
 }
 
+/* COMPLETAR */
 async function toggleCompleted(task, checked) {
-  if (!canEdit(task)) return
-  const { error } = await supabase
+
+  await supabase
     .from("tasks")
-    .update({ completed: !!checked })
+    .update({ completed: checked })
     .eq("id", task.id)
-  if (error) { alert(error.message); return }
+
   emit("reload")
 }
 </script>
+
 <style scoped>
-/* Contenedor general */
 .tasks-container {
   max-width: 780px;
   margin: 0 auto;
@@ -251,7 +326,6 @@ async function toggleCompleted(task, checked) {
   margin-bottom: 14px;
 }
 
-/* ---------- Formulario ---------- */
 .task-form {
   display: grid;
   gap: 12px;
@@ -278,7 +352,6 @@ async function toggleCompleted(task, checked) {
   cursor: pointer;
 }
 
-/* ---------- Lista de tareas ---------- */
 .task-list {
   list-style: none;
   padding: 0;
@@ -295,46 +368,19 @@ async function toggleCompleted(task, checked) {
   border-radius: 14px;
   border: 1px solid #2d2d2d;
   box-shadow: 0 0 12px #00000020;
-  transition: 0.15s ease;
 }
 
-.task-card:hover {
-  background: #212121;
-  border-color: #3c3c3c;
-}
-
-/* Checkbox */
-.task-check {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.check-input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--primary);
-  cursor: pointer;
-}
-
-/* Contenido central */
 .task-middle {
   display: grid;
-  gap: 5px;
-}
-
-.task-title-row {
-  display: flex;
-  align-items: center;
-  font-weight: 600;
+  gap: 6px;
 }
 
 .task-title {
-  font-size: 1rem;
+  font-weight: 600;
 }
 
 .task-desc {
-  font-size: 0.9rem;
+  font-size: .9rem;
   color: var(--text-muted);
 }
 
@@ -343,25 +389,24 @@ async function toggleCompleted(task, checked) {
   color: var(--text-muted);
 }
 
-/* Edición */
-.task-edit-input,
-.task-edit-area {
-  width: 100%;
-  padding: 8px;
-  border-radius: 8px;
-  background: #0e0e0e;
-  border: 1px solid var(--border);
-  color: var(--text);
+.task-file-preview {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* Creador */
+.task-image-preview {
+  width: 120px;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
 .task-meta {
-  margin-top: 4px;
   font-size: .85rem;
   color: var(--text-muted);
 }
 
-/* Botones */
 .task-actions {
   display: flex;
   gap: 6px;
@@ -372,21 +417,9 @@ async function toggleCompleted(task, checked) {
   border-radius: 8px;
   border: none;
   cursor: pointer;
-  font-size: 16px;
 }
 
-.edit {
-  background: var(--primary);
-  color: #000;
-}
-
-.save {
-  background: #4cc9f0;
-  color: #000;
-}
-
-.delete {
-  background: var(--danger);
-  color: #fff;
-}
+.edit { background: var(--primary); }
+.save { background: #4cc9f0; }
+.delete { background: var(--danger); }
 </style>

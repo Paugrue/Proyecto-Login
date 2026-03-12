@@ -7,23 +7,15 @@ const router = useRouter()
 
 // Estado
 const user = ref(null)
-const fullName = ref("")        // columna: full_name (en public.profiles)
+const fullName = ref("")
 const email = ref("")
-const avatarUrl = ref("")       // URL pública del avatar (Storage)
-const selectedFile = ref(null)  // archivo seleccionado
-const previewUrl = ref("")      // URL de previsualización local
+const avatarUrl = ref("")
+const selectedFile = ref(null)
+const previewUrl = ref("")
 
 const loading = ref(false)
 const okMsg = ref("")
 const errMsg = ref("")
-
-// --- Navegación del menú ---
-function goHome() {
-  router.push({ name: "Home" })
-}
-function goTasks() {
-  router.push({ path: "/", hash: "#tasks" })
-}
 
 // --- Cargar perfil ---
 async function loadProfile() {
@@ -40,11 +32,10 @@ async function loadProfile() {
   user.value = sessionData.session.user
   email.value = user.value.email || ""
 
-  // FILTRO POR ID en SELECT (correcto)
   const { data, error } = await supabase
     .from("profiles")
     .select("full_name, updated_at, avatar_url")
-    .eq("id", user.value.id)      // ← filtro por id del usuario
+    .eq("id", user.value.id)
     .maybeSingle()
 
   if (error) {
@@ -60,17 +51,22 @@ async function loadProfile() {
 function onFileChange(e) {
   const file = e.target.files?.[0]
   if (!file) return
+
   if (!file.type.startsWith("image/")) {
     errMsg.value = "El archivo debe ser una imagen."
     return
   }
-  if (file.size > 3 * 1024 * 1024) { // 3MB
+
+  if (file.size > 3 * 1024 * 1024) {
     errMsg.value = "La imagen no puede superar 3MB."
     return
   }
+
   selectedFile.value = file
-  // Previsualización local
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+
+  if (previewUrl.value && previewUrl.value.startsWith("blob:")) {
+    URL.revokeObjectURL(previewUrl.value)
+  }
   previewUrl.value = URL.createObjectURL(file)
 }
 
@@ -82,27 +78,38 @@ function removePreview() {
   previewUrl.value = avatarUrl.value || ""
 }
 
-// --- Subir avatar a Supabase Storage ---
+// --- Subir avatar AL BUCKET REAL ("files") ---
 async function uploadAvatarIfNeeded() {
   if (!selectedFile.value || !user.value) return null
 
+  // Asegurar sesión válida
+  const { data: sessionData, error: sErr } = await supabase.auth.getSession()
+  if (sErr || !sessionData?.session?.user?.id) {
+    throw new Error("Sesión no válida. Cierra sesión y vuelve a entrar.")
+  }
+
+  const uid = sessionData.session.user.id
   const file = selectedFile.value
-  const filePath = `${user.value.id}/${Date.now()}-${file.name}`
+  const safeName = file.name.replace(/[^\w.\- ]+/g, "_")
+
+  // RUTA CORRECTA: bucket "files" → carpeta "avatars"
+  const filePath = `avatars/${uid}/${Date.now()}-${safeName}`
 
   const { error: upErr } = await supabase.storage
-    .from("avatars")
+    .from("files")              // ← TU BUCKET REAL
     .upload(filePath, file, {
       upsert: true,
-      contentType: file.type,
+      contentType: file.type || "application/octet-stream",
       cacheControl: "3600"
     })
 
   if (upErr) {
+    console.error("Error storage upload:", upErr)
     throw new Error(`Error subiendo avatar: ${upErr.message}`)
   }
 
   const { data: pub } = supabase.storage
-    .from("avatars")
+    .from("files")
     .getPublicUrl(filePath)
 
   return pub?.publicUrl || null
@@ -112,6 +119,7 @@ async function uploadAvatarIfNeeded() {
 async function updateProfile() {
   okMsg.value = ""
   errMsg.value = ""
+
   if (!user.value) {
     errMsg.value = "No hay usuario autenticado."
     return
@@ -119,8 +127,8 @@ async function updateProfile() {
 
   loading.value = true
   try {
-    // 1) Si hay imagen nueva, súbela
     let newAvatarUrl = avatarUrl.value
+
     if (selectedFile.value) {
       newAvatarUrl = await uploadAvatarIfNeeded()
       if (!newAvatarUrl) {
@@ -129,20 +137,16 @@ async function updateProfile() {
       avatarUrl.value = newAvatarUrl
     }
 
-    // 2) (Opcional) Actualiza email y metadata en auth
+    // Actualizar metadata
     const { error: authErr } = await supabase.auth.updateUser({
-      email: email.value,  // quítalo si no quieres permitir cambiar email aquí
       data: {
         avatar_url: avatarUrl.value,
         full_name: fullName.value
       }
     })
-    if (authErr) {
-      console.warn("Error actualizando auth:", authErr.message)
-      // seguimos con profiles igualmente
-    }
+    if (authErr) console.warn("Error actualizando auth:", authErr.message)
 
-    // 3) UPDATE en profiles con FILTRO POR ID (RLS-friendly)
+    // Actualizar tabla profiles
     const { error: updErr } = await supabase
       .from("profiles")
       .update({
@@ -150,16 +154,15 @@ async function updateProfile() {
         avatar_url: avatarUrl.value,
         updated_at: new Date().toISOString()
       })
-      .eq("id", user.value.id)   // ← FILTRO POR ID
+      .eq("id", user.value.id)
       .select()
       .single()
 
-    if (updErr) {
-      throw new Error(updErr.message)
-    }
+    if (updErr) throw new Error(updErr.message)
 
-    okMsg.value = "Perfil guardado correctamente ✅"
+    okMsg.value = "Perfil actualizado correctamente ✅"
     selectedFile.value = null
+
   } catch (e) {
     errMsg.value = `Error al guardar perfil: ${e?.message || e}`
   } finally {
@@ -170,13 +173,12 @@ async function updateProfile() {
 loadProfile()
 </script>
 
+
 <template>
   <div class="section">
-
     <h2>Editar Perfil</h2>
 
     <div class="grid">
-
       <div>
         <label>Nombre</label>
         <input v-model="fullName" placeholder="Nombre visible" />
@@ -184,47 +186,33 @@ loadProfile()
 
       <div>
         <label>Email</label>
-        <input v-model="email" placeholder="Email" />
+        <input :value="email" disabled class="readonly-input" />
       </div>
 
       <div>
         <label>Avatar</label>
 
-        <!-- Previsualización -->
         <div class="avatar-preview" v-if="previewUrl">
           <img :src="previewUrl" alt="Previsualización avatar" />
           <button class="small" @click="removePreview">Quitar</button>
         </div>
 
-        <!-- Subida de imagen -->
         <input type="file" accept="image/*" @change="onFileChange" />
         <p class="muted">Formatos: JPG/PNG/WebP • Máx: 3MB</p>
       </div>
-
     </div>
 
     <button :disabled="loading" @click="updateProfile">
-      {{ loading ? 'Guardando...' : 'Guardar cambios' }}
+      {{ loading ? "Guardando..." : "Guardar cambios" }}
     </button>
 
     <p v-if="okMsg" class="ok">{{ okMsg }}</p>
     <p v-if="errMsg" class="err">{{ errMsg }}</p>
-
   </div>
 </template>
 
-<style scoped>
-.profile-menu {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.profile-menu button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-}
 
+<style scoped>
 .grid {
   display: grid;
   gap: 16px;
@@ -251,6 +239,14 @@ loadProfile()
   border: 1px solid var(--border);
   color: var(--text);
   padding: 6px 8px;
+}
+
+.readonly-input {
+  background: #0d0d0d;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 .ok { color: #3ecf8e; margin-top: 8px; }

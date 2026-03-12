@@ -18,16 +18,18 @@ async function loadSession() {
   const u = data.session?.user || null
   user.value = u
   email.value = u?.email || ""
-  // Puedes cambiar a user_metadata.full_name si lo usas
   displayName.value = u?.user_metadata?.username || u?.user_metadata?.full_name || "Usuario"
 }
 
 async function logout() {
-  await supabase.auth.signOut()
-  user.value = null
-  email.value = ""
-  displayName.value = ""
-  router.push({ name: "Home" })
+  const { error } = await supabase.auth.signOut()
+
+  if (error) {
+    console.warn("Error cerrando sesión:", error.message)
+    return
+  }
+
+  router.replace({ name: "Login" })
 }
 
 let sub

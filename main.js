@@ -2,7 +2,7 @@
 import { supabase } from './src/supabaseClient';
 import { AuthService } from './AuthService';
 import { TaskService } from './TaskService';
-import { StorageService } from './StorageService';
+import { StorageService } from './src/services/StorageService';
 
 const app = {
   user: null,

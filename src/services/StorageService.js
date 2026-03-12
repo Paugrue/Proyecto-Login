@@ -1,4 +1,4 @@
-import { supabase } from './src/supabaseClient';
+import { supabase } from '../supabaseClient'
 
 export class StorageService {
     // Subir archivo a un bucket específico
