@@ -1,16 +1,18 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { supabase } from "../supabaseClient.js";
 
+import { supabase } from "../supabaseClient";
 import Login from "../components/Login.vue";
 import Tasks from "../components/Tasks.vue";
 import PublicGallery from "../components/PublicGallery.vue";
 import AdminGallery from "../components/AdminGallery.vue";
 
+
+
 const router = useRouter();
 
-// Estados
+// Estado del usuario
 const user = ref(null);
 const userEmail = ref("");
 const username = ref("");
@@ -21,13 +23,18 @@ const tasks = ref([]);
 const publicImages = ref([]);
 const adminImages = ref([]);
 
-// --- Funciones ---
+// --- Funciones --- //
+
 async function checkSession() {
   const { data } = await supabase.auth.getSession();
-  if (data.session) handleUserLogin(data.session.user);
+  if (data.session) {
+    await handleUserLogin(data.session.user);
+  }
 }
 
 async function handleUserLogin(loggedUser) {
+  if (!loggedUser) return;
+
   user.value = loggedUser;
   userEmail.value = loggedUser.email;
   username.value = loggedUser.user_metadata?.username || "Usuario";
@@ -35,15 +42,20 @@ async function handleUserLogin(loggedUser) {
 
   await loadTasks();
   await loadPublicImages();
-  if (isAdmin.value) await loadAdminImages();
+
+  if (isAdmin.value) {
+    await loadAdminImages();
+  }
 }
 
 async function logout() {
   await supabase.auth.signOut();
+
   user.value = null;
   userEmail.value = "";
   username.value = "";
   isAdmin.value = false;
+
   tasks.value = [];
   publicImages.value = [];
   adminImages.value = [];
@@ -51,11 +63,12 @@ async function logout() {
 
 async function loadTasks() {
   if (!user.value) return;
+
   const { data } = await supabase
     .from("tasks")
     .select("*")
-    .eq("user_id", user.value.id)
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .eq("user_id", user.value.id);
 
   if (data) tasks.value = data;
 }
@@ -86,7 +99,7 @@ async function loadAdminImages() {
   });
 }
 
-// Redirigir a perfil
+// Redirige al perfil directamente
 function goToProfile() {
   router.push("/admin/profile");
 }
@@ -97,37 +110,32 @@ onMounted(() => {
 </script>
 
 <template>
-  <header id="appHeader">
-    <div><strong>Proyecto Supabase</strong></div>
-    <div id="userInfo">
-      <div class="userRow">
-        <span class="userIcon">👤</span>
-        <div>
-          <div class="username">{{ username }}</div>
-          <div class="email">{{ userEmail }}</div>
-        </div>
-      </div>
+  <div>
+    <!-- Título principal -->
+    <h2>Supabase BaaS</h2>
 
-      <button v-if="user" class="profileBtn" @click="goToProfile">
-        Editar Perfil
-      </button>
+    <!-- Login si no hay usuario -->
+    <Login v-if="!user" @login-success="handleUserLogin" />
+
+    <!-- Contenido solo para usuarios autenticados -->
+    <div v-if="user" class="section">
+      <Tasks :tasks="tasks" :user="user" @reload="loadTasks" />
+
+      <PublicGallery :images="publicImages" @reload="loadPublicImages" />
+
+      <AdminGallery
+        v-if="isAdmin"
+        :images="adminImages"
+        @reload="loadAdminImages"
+      />
+
+      <button class="logout" @click="logout">Cerrar sesión</button>
     </div>
-  </header>
-
-  <h2>Supabase BaaS</h2>
-
-  <Login v-if="!user" @login-success="handleUserLogin" />
-
-  <div v-if="user" class="section">
-    <Tasks :tasks="tasks" :user="user" @reload="loadTasks" />
-    <PublicGallery :images="publicImages" @reload="loadPublicImages" />
-    <AdminGallery v-if="isAdmin" :images="adminImages" @reload="loadAdminImages" />
-
-    <button class="logout" @click="logout">Cerrar sesión</button>
   </div>
 </template>
 
-<style scoped>
+
+<style>
 :root {
   --primary: #3ecf8e;
   --primary-hover: #34b27b;
@@ -249,4 +257,25 @@ button:hover {
   margin: 40px auto;
   padding: 20px;
 }
+
+.main-menu {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.menu-link {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+.menu-link.router-link-active {
+  background: var(--primary);
+  color: #000;
+  border-color: var(--primary);
+}
+
+
 </style>
