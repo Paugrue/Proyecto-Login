@@ -148,9 +148,28 @@ onMounted(() => {
       </div>
 
       <!-- Contenido según pestaña -->
-      <div v-if="currentTab === 'tasks'">
-        <Tasks :tasks="tasks" :user="user" @reload="loadTasks" />
-      </div>
+      <div v-if="currentTab === 'tasks'" class="tasks-grid">
+
+  <div
+    v-for="task in tasks"
+    :key="task.id"
+    class="task-card"
+    @click="router.push(`/tasks/${task.id}`)"
+  >
+
+    <img
+    v-if="task.file_url"
+    :src="task.file_url"
+    class="task-thumb"
+    />
+
+    <div class="task-title">
+      {{ task.title }}
+    </div>
+
+  </div>
+
+</div>
 
       <div v-if="currentTab === 'myImages'">
         <MyImages />
@@ -164,7 +183,7 @@ onMounted(() => {
         <AdminGallery :images="adminImages" @reload="loadAdminImages" />
       </div>
 
-      <button class="logout" @click="logout">Cerrar sesión</button>
+      
     </div>
   </div>
 </template>
@@ -310,5 +329,36 @@ button:hover {
   background: var(--primary);
   color: #000;
   border-color: var(--primary);
+}
+
+.tasks-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:15px;
+}
+
+.task-card{
+  background:#1e1e1e;
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:0.2s;
+  border:1px solid var(--border);
+}
+
+.task-card:hover{
+  transform:scale(1.05);
+}
+
+.task-thumb{
+  width:100%;
+  height:120px;
+  object-fit:cover;
+}
+
+.task-title{
+  padding:8px;
+  font-weight:600;
+  font-size:0.9rem;
 }
 </style>

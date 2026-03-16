@@ -70,13 +70,13 @@ function onFileChange(e) {
   previewUrl.value = URL.createObjectURL(file)
 }
 
-function removePreview() {
-  selectedFile.value = null
-  if (previewUrl.value && previewUrl.value.startsWith("blob:")) {
-    URL.revokeObjectURL(previewUrl.value)
+  function removePreview() {
+    if (previewUrl.value && previewUrl.value.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl.value)
+    }
+    selectedFile.value = null
+    previewUrl.value = ""  // <-- forzamos que se oculte el div
   }
-  previewUrl.value = avatarUrl.value || ""
-}
 
 // --- Subir avatar AL BUCKET REAL ("files") ---
 async function uploadAvatarIfNeeded() {
