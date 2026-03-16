@@ -148,15 +148,15 @@ async function updateProfile() {
 
     // Actualizar tabla profiles
     const { error: updErr } = await supabase
-      .from("profiles")
-      .update({
-        full_name: fullName.value,
-        avatar_url: avatarUrl.value,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", user.value.id)
-      .select()
-      .single()
+  .from("profiles")
+  .update({
+    full_name: fullName.value,
+    avatar_url: avatarUrl.value,
+    updated_at: new Date().toISOString()
+  })
+  .eq("id", user.value.id)
+  .select()
+  .limit(1)
 
     if (updErr) throw new Error(updErr.message)
 

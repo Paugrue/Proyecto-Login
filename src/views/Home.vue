@@ -7,8 +7,7 @@ import Login from "../components/Login.vue";
 import Tasks from "../components/Tasks.vue";
 import PublicGallery from "../components/PublicGallery.vue";
 import AdminGallery from "../components/AdminGallery.vue";
-
-
+import MyImages from "../components/MyImages.vue"; 
 
 const router = useRouter();
 
@@ -22,6 +21,9 @@ const isAdmin = ref(false);
 const tasks = ref([]);
 const publicImages = ref([]);
 const adminImages = ref([]);
+
+// Pestaña actual
+const currentTab = ref("tasks");
 
 // --- Funciones --- //
 
@@ -111,31 +113,64 @@ onMounted(() => {
 
 <template>
   <div>
-    <!-- Título principal -->
     <h2>Supabase BaaS</h2>
 
-    <!-- Login si no hay usuario -->
     <Login v-if="!user" @login-success="handleUserLogin" />
 
-    <!-- Contenido solo para usuarios autenticados -->
     <div v-if="user" class="section">
-      <Tasks :tasks="tasks" :user="user" @reload="loadTasks" />
 
-      <PublicGallery :images="publicImages" @reload="loadPublicImages" />
+      <!-- Menú de pestañas -->
+      <div class="main-menu">
+        <button
+          class="menu-link"
+          :class="{ 'router-link-active': currentTab === 'tasks' }"
+          @click="currentTab = 'tasks'"
+        >Tareas</button>
 
-      <AdminGallery
-        v-if="isAdmin"
-        :images="adminImages"
-        @reload="loadAdminImages"
-      />
+        <button
+          class="menu-link"
+          :class="{ 'router-link-active': currentTab === 'myImages' }"
+          @click="currentTab = 'myImages'"
+        >Mis Imágenes</button>
+
+        <button
+          class="menu-link"
+          :class="{ 'router-link-active': currentTab === 'publicGallery' }"
+          @click="currentTab = 'publicGallery'"
+        >Galería Pública</button>
+
+        <button
+          v-if="isAdmin"
+          class="menu-link"
+          :class="{ 'router-link-active': currentTab === 'adminGallery' }"
+          @click="currentTab = 'adminGallery'"
+        >Galería Admin</button>
+      </div>
+
+      <!-- Contenido según pestaña -->
+      <div v-if="currentTab === 'tasks'">
+        <Tasks :tasks="tasks" :user="user" @reload="loadTasks" />
+      </div>
+
+      <div v-if="currentTab === 'myImages'">
+        <MyImages />
+      </div>
+
+      <div v-if="currentTab === 'publicGallery'">
+        <PublicGallery :images="publicImages" @reload="loadPublicImages" />
+      </div>
+
+      <div v-if="currentTab === 'adminGallery' && isAdmin">
+        <AdminGallery :images="adminImages" @reload="loadAdminImages" />
+      </div>
 
       <button class="logout" @click="logout">Cerrar sesión</button>
     </div>
   </div>
 </template>
 
-
 <style>
+/* Tu CSS se mantiene igual que antes */
 :root {
   --primary: #3ecf8e;
   --primary-hover: #34b27b;
@@ -276,6 +311,4 @@ button:hover {
   color: #000;
   border-color: var(--primary);
 }
-
-
 </style>

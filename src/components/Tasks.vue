@@ -283,23 +283,58 @@ async function saveEdit(task) {
 }
 
 /* BORRAR */
+
 async function deleteTask(id) {
+  if (!confirm("¿Eliminar tarea?")) return;
 
-  if (!confirm("¿Eliminar tarea?")) return
+  try {
+    // --- 1. Traer la tarea directamente de Supabase ---
+    const { data: taskData, error: selectError } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("id", String(id))  // <-- forzamos a string para UUID
+      .single(); // devuelve solo 1 fila
 
-  const task = props.tasks.find(t => t.id === id)
+    if (selectError) {
+      console.error("Error buscando tarea:", selectError.message);
+      return alert("No se pudo encontrar la tarea en la base de datos.");
+    }
 
-  if (task?.file_url) {
-    const path = task.file_url
-      .split("/storage/v1/object/public/files/")[1]
+    if (!taskData) {
+      console.warn("No se encontró tarea con id:", id);
+      return alert("Tarea no encontrada");
+    }
 
-    if (path)
-      await supabase.storage.from("files").remove([path])
+    // --- 2. Borrar imagen asociada si existe ---
+    if (taskData.file_url) {
+      const path = taskData.file_url.split("/files/v1/object/public/files/")[1];
+      if (path) {
+        const { error: storageError } = await supabase.storage.from("files").remove([path]);
+        if (storageError) console.error("Error borrando imagen de Storage:", storageError.message);
+      }
+    }
+
+    // --- 3. Borrar la tarea ---
+    const { error: deleteError, data: deletedData } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", String(id))  // <-- UUID string
+      .select();
+
+    if (deleteError) {
+      console.error("Error borrando tarea de DB:", deleteError.message);
+      return alert("No se pudo borrar la tarea.");
+    }
+
+    console.log("Tarea borrada correctamente:", deletedData);
+
+    // --- 4. Recargar lista de tareas ---
+    emit("reload");
+
+  } catch (err) {
+    console.error("Error en deleteTask:", err);
+    alert("Ocurrió un error al borrar la tarea.");
   }
-
-  await supabase.from("tasks").delete().eq("id", id)
-
-  emit("reload")
 }
 
 /* COMPLETAR */
