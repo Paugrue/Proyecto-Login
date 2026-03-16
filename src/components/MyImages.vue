@@ -123,21 +123,35 @@ async function deleteImage(img) {
   if (!confirm("¿Seguro que quieres borrar esta imagen?")) return;
 
   try {
-    const res = await fetch("http://localhost:3000/delete-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storage_path: img.storage_path, image_id: img.id })
-    });
+    // 1. Borrar del Storage
+    const { error: storageError } = await supabase
+      .storage
+      .from("files")  // nombre del bucket
+      .remove([img.storage_path]);
 
-    const result = await res.json();
-    if (!result.ok) return alert("Error borrando imagen: " + result.error);
+    if (storageError) {
+      console.error("Error borrando del storage:", storageError);
+      throw new Error(storageError.message);
+    }
 
+    // 2. Borrar de la base de datos
+    const { error: dbError } = await supabase
+      .from("user_images")
+      .delete()
+      .eq("id", img.id);
+
+    if (dbError) {
+      console.error("Error borrando de DB:", dbError);
+      throw new Error(dbError.message);
+    }
+
+    // 3. Recargar imágenes
     await loadImages();
     alert("Imagen borrada correctamente ✅");
 
   } catch (err) {
     console.error(err);
-    alert("Error eliminando imagen");
+    alert("Error eliminando imagen: " + (err.message || err));
   }
 }
 
