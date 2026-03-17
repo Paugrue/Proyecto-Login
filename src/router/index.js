@@ -1,23 +1,18 @@
+// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
 import Profile from '@/views/Profile.vue'
 import MyTasksView from '@/views/MyTasksView.vue'
 import AllTasksView from '@/views/AllTasksView.vue'
 import Login from '@/components/Login.vue'
+import { supabase } from '../supabaseClient'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-
     { path: '/', name: 'Home', component: Home },
 
-    // 👇 IMPORTANTE: guestOnly
-    { 
-      path: '/login', 
-      name: 'Login', 
-      component: Login,
-      meta: { guestOnly: true }
-    },
+    { path: '/login', name: 'Login', component: Login },
 
     { path: '/admin/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true } },
 
@@ -31,24 +26,21 @@ const router = createRouter({
       component: () => import('../views/TaskDetailView.vue'),
       props: true
     }
-
   ],
 })
 
-router.beforeEach((to, from, next) => {
+// --- Guard global ---
+router.beforeEach(async (to, from, next) => {
+  const { data } = await supabase.auth.getSession()
+  const isLogged = !!data.session
 
-  const supabaseSession = Object.keys(localStorage)
-    .find(key => key.includes('supabase.auth.token'))
-
-  const isLogged = !!supabaseSession || !!localStorage.getItem('token')
-
-  // Rutas protegidas
+  // Si la ruta requiere login y no estás logueado → login
   if (to.matched.some(record => record.meta.requiresAuth) && !isLogged) {
     return next('/login')
   }
 
-  // Evitar entrar a login si ya está logueado
-  if (to.matched.some(record => record.meta.guestOnly) && isLogged) {
+  // Si intentas ir a login estando logueado → home
+  if (to.name === 'Login' && isLogged) {
     return next('/')
   }
 
