@@ -11,7 +11,13 @@ const router = createRouter({
 
     { path: '/', name: 'Home', component: Home },
 
-    { path: '/login', name: 'Login', component: Login },
+    // 👇 IMPORTANTE: guestOnly
+    { 
+      path: '/login', 
+      name: 'Login', 
+      component: Login,
+      meta: { guestOnly: true }
+    },
 
     { path: '/admin/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true } },
 
@@ -36,12 +42,17 @@ router.beforeEach((to, from, next) => {
 
   const isLogged = !!supabaseSession || !!localStorage.getItem('token')
 
+  // Rutas protegidas
   if (to.matched.some(record => record.meta.requiresAuth) && !isLogged) {
-    next('/login')
-  } else {
-    next()
+    return next('/login')
   }
 
+  // Evitar entrar a login si ya está logueado
+  if (to.matched.some(record => record.meta.guestOnly) && isLogged) {
+    return next('/')
+  }
+
+  next()
 })
 
 export default router
